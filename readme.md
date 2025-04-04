@@ -11,6 +11,16 @@
    3. На каждой машине отключил авторизацию по пароли(PasswordAuthentication no) и добавил авторизацию по ключу(PubkeyAuthentication yes)
 
 ## Запуск приложения
-
+1. Перед запуском приложения нужно установить зависимости
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+2. Команда для запуска
+```bash
+# Пример запуска команды
+python3 deploy.py --key ~/.ssh/ansible_key "192.168.56.105,192.168.56.106"
+```
 ## Команды 
 1. `ansible all -i inventory.yaml -m ping` - проверить соединение с серверами

@@ -1,2 +1,4 @@
 .idea
 inventory.ini
+venv/
+__pycache__/
