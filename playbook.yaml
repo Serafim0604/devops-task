@@ -1,6 +1,11 @@
 - name: Setup PostgreSQL
   hosts: postgres
   become: true
+  vars:
+    pg_conf_path_debian: "/etc/postgresql/*/main/postgresql.conf"
+    pg_hba_path_debian: "/etc/postgresql/*/main/pg_hba.conf"
+    pg_conf_path_redhat: "/var/lib/pgsql/data/postgresql.conf"
+    pg_hba_path_redhat: "/var/lib/pgsql/data/pg_hba.conf"
   tasks:
     - name: Get os info
       ansible.builtin.setup:
@@ -22,10 +27,33 @@
 
     - name: Init DB if Redhat
       command: postgresql-setup --initdb
+      args:
+        creates: /var/lib/pgsql/data/PG_VERSION
       when: ansible_facts['os_family'] == "RedHat"
 
-    - name: Check is PostgreSQL running
+    - name: Setup listen_addresses = '*'
+      lineinfile:
+        path: "{{ pg_conf_path_debian if ansible_facts['os_family'] == 'Debian' else pg_conf_path_redhat }}"
+        regexp: '^#?listen_addresses ='
+        line: "listen_addresses = '*'"
+        state: present
+
+    - name: Set user=student to connect from allowed_ip
+      lineinfile:
+        path: "{{ pg_hba_path_debian if ansible_facts['os_family'] == 'Debian' else pg_hba_path_redhat }}"
+        line: "host all student {{ allowed_ip }}/32 md5"
+        insertafter: EOF
+        state: present
+
+    - name: Restart PostgreSQL
       service:
         name: postgresql
-        state: started
+        state: restarted
         enabled: true
+
+    - name: Create user=student
+      become_user: postgres
+      postgresql_user:
+        name: student
+        password: "studentpass"
+        priv: "ALL"

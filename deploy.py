@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import subprocess
 
 import paramiko
 
@@ -71,10 +72,17 @@ def main():
     for ip in hosts:
         loads[ip] = get_load_avg(ip, ssh_key_path)
 
-    selected_host = min(loads, key=loads.get)
-    print(f"\n[✓] Selected host: {selected_host}\n")
+    db_host = min(loads, key=loads.get)
+    print(f"\n[✓] Selected host: {db_host}\n")
+    generate_inventory(db_host, ssh_key_path)
 
-    generate_inventory(selected_host, ssh_key_path)
+    client_host = [ip for ip in hosts if ip != db_host][0]
+    subprocess.run([
+        "ansible-playbook",
+        "-i", "inventory.ini",
+        "playbook.yml",
+        "--extra-vars", f"allowed_ip={client_host}",
+    ], check=True)
 
 
 if __name__ == "__main__":
