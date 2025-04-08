@@ -94,6 +94,9 @@ def main():
         "--extra-vars", f"client_host={client_host} db_host={db_host} db_user_password={db_password}",
     ], check=True)
 
+    print("\n[✓] PostgreSQL installation completed successfully!\n")
+
+
 
 if __name__ == "__main__":
     main()
