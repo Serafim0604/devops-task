@@ -1,0 +1,40 @@
+- name: Install ufw on Debian
+  apt:
+    name: ufw
+    state: present
+    update_cache: yes
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Allow SSH before enabling ufw
+  command: ufw allow 22/tcp
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Allow PostgreSQL port via ufw on Debian
+  command: ufw allow 5432/tcp
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Enable ufw on Debian
+  command: ufw --force enable
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Install firewalld on RedHat
+  dnf:
+    name: firewalld
+    state: present
+    update_cache: yes
+  when: ansible_facts['os_family'] == "RedHat"
+
+- name: Start and enable firewalld on RedHat
+  systemd:
+    name: firewalld
+    state: started
+    enabled: true
+  when: ansible_facts['os_family'] == "RedHat"
+
+- name: Open PostgreSQL port in firewalld on RedHat
+  firewalld:
+    port: 5432/tcp
+    permanent: true
+    state: enabled
+    immediate: true
+  when: ansible_facts['os_family'] == "RedHat"

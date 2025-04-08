@@ -1,0 +1,28 @@
+- name: Get OS info
+  setup:
+    gather_subset:
+      - os_family
+
+- name: Install PostgreSQL client on Debian
+  apt:
+    name: postgresql-client
+    state: present
+    update_cache: yes
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Install PostgreSQL client on RedHat
+  dnf:
+    name: postgresql
+    state: present
+    update_cache: yes
+  when: ansible_facts['os_family'] == "RedHat"
+
+- name: Check connection to PostgreSQL via SELECT 1
+  shell: |
+    PGPASSWORD=studentpass psql -h {{ db_host }} -U student -d postgres -c "SELECT 1;"
+  register: query_result
+  failed_when: query_result.rc != 0
+
+- name: Вывод результата SELECT 1
+  debug:
+    var: query_result.stdout
