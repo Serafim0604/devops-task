@@ -33,10 +33,12 @@ def get_load_avg(ip, ssh_key_path):
         ssh_client.close()
 
 
-def generate_inventory(ip, ssh_key_path):
+def generate_inventory(db_host, client_host, ssh_key_path):
     inventory_content = (
         "[postgres]\n"
-        f"{ip} ansible_user=root ansible_ssh_private_key_file={ssh_key_path}\n"
+        f"{db_host} ansible_user=root ansible_ssh_private_key_file={ssh_key_path}\n"
+        "[client]\n"
+        f"{client_host} ansible_user=root ansible_ssh_private_key_file={ssh_key_path}\n"
     )
 
     with open("inventory.ini", "w") as f:
@@ -74,14 +76,16 @@ def main():
 
     db_host = min(loads, key=loads.get)
     print(f"\n[✓] Selected host: {db_host}\n")
-    generate_inventory(db_host, ssh_key_path)
 
     client_host = [ip for ip in hosts if ip != db_host][0]
+
+    generate_inventory(db_host, client_host, ssh_key_path)
+
     subprocess.run([
         "ansible-playbook",
         "-i", "inventory.ini",
-        "playbook.yml",
-        "--extra-vars", f"allowed_ip={client_host}",
+        "playbook.yaml",
+        "--extra-vars", f"client_host={client_host} db_host={db_host}",
     ], check=True)
 
 

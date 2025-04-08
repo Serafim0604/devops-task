@@ -2,8 +2,9 @@
   hosts: postgres
   become: true
   vars:
-    pg_conf_path_debian: "/etc/postgresql/*/main/postgresql.conf"
-    pg_hba_path_debian: "/etc/postgresql/*/main/pg_hba.conf"
+    pg_version: "14"
+    pg_conf_path_debian: "/etc/postgresql/{{pg_version}}/main/postgresql.conf"
+    pg_hba_path_debian: "/etc/postgresql/{{pg_version}}/main/pg_hba.conf"
     pg_conf_path_redhat: "/var/lib/pgsql/data/postgresql.conf"
     pg_hba_path_redhat: "/var/lib/pgsql/data/pg_hba.conf"
   tasks:
@@ -17,6 +18,32 @@
         name: postgresql
         state: present
         update_cache: yes
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Find postgresql.conf on Debian
+      find:
+        paths: /etc/postgresql
+        patterns: postgresql.conf
+        recurse: yes
+      register: found_pg_conf
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Set pg_conf_path for Debian
+      set_fact:
+        pg_conf_path_debian: "{{ found_pg_conf.files[0].path }}"
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Find pg_hba.conf on Debian
+      find:
+        paths: /etc/postgresql
+        patterns: pg_hba.conf
+        recurse: yes
+      register: found_pg_hba
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Set pg_hba_path for Debian
+      set_fact:
+        pg_hba_path_debian: "{{ found_pg_hba.files[0].path }}"
       when: ansible_facts['os_family'] == "Debian"
 
     - name: Install PostgreSQL if RedHat(AlmaLinux)
@@ -38,10 +65,10 @@
         line: "listen_addresses = '*'"
         state: present
 
-    - name: Set user=student to connect from allowed_ip
+    - name: Set user=student to connect from client_host
       lineinfile:
         path: "{{ pg_hba_path_debian if ansible_facts['os_family'] == 'Debian' else pg_hba_path_redhat }}"
-        line: "host all student {{ allowed_ip }}/32 md5"
+        line: "host all student {{ client_host }}/32 md5"
         insertafter: EOF
         state: present
 
@@ -51,9 +78,102 @@
         state: restarted
         enabled: true
 
+    - name: Install psycopg2 on Debian
+      apt:
+        name: python3-psycopg2
+        state: present
+        update_cache: yes
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Install psycopg2 on RedHat
+      dnf:
+        name: python3-psycopg2
+        state: present
+        update_cache: yes
+      when: ansible_facts['os_family'] == "RedHat"
+
     - name: Create user=student
       become_user: postgres
-      postgresql_user:
+      community.postgresql.postgresql_user:
         name: student
         password: "studentpass"
+        db: postgres
         priv: "ALL"
+
+- name: Setup firewall to allow PostgreSQL connection
+  hosts: all
+  become: true
+  tasks:
+    # Debian
+    - name: Install ufw on Debian
+      apt:
+        name: ufw
+        state: present
+        update_cache: yes
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Enable ufw on Debian
+      command: ufw --force enable
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Allow PostgreSQL port via ufw on Debian
+      command: ufw allow 5432/tcp
+      when: ansible_facts['os_family'] == "Debian"
+
+    # AlmaLinux
+    - name: Install firewalld on RedHat
+      dnf:
+        name: firewalld
+        state: present
+        update_cache: yes
+      when: ansible_facts['os_family'] == "RedHat"
+
+    - name: Start and enable firewalld on RedHat
+      systemd:
+        name: firewalld
+        state: started
+        enabled: true
+      when: ansible_facts['os_family'] == "RedHat"
+
+    - name: Open PostgreSQL port in firewalld on RedHat
+      firewalld:
+        port: 5432/tcp
+        permanent: true
+        state: enabled
+        immediate: true
+      when: ansible_facts['os_family'] == "RedHat"
+
+- name: Check DB connection from client
+  hosts: client
+  become: true
+  vars:
+    db_host: "{{ db_host }}"
+  tasks:
+    - name: Get OS info
+      setup:
+        gather_subset:
+          - os_family
+
+    - name: Install PostgreSQL client on Debian
+      apt:
+        name: postgresql-client
+        state: present
+        update_cache: yes
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Install PostgreSQL client on RedHat
+      dnf:
+        name: postgresql
+        state: present
+        update_cache: yes
+      when: ansible_facts['os_family'] == "RedHat"
+
+    - name: Check connection to PostgreSQL via SELECT 1
+      shell: |
+        PGPASSWORD=studentpass psql -h {{ db_host }} -U student -d postgres -c "SELECT 1;"
+      register: query_result
+      failed_when: query_result.rc != 0
+
+    - name: Вывод результата SELECT 1
+      debug:
+        var: query_result.stdout
