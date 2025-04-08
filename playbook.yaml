@@ -1,0 +1,31 @@
+- name: Setup PostgreSQL
+  hosts: postgres
+  become: true
+  tasks:
+    - name: Get os info
+      ansible.builtin.setup:
+        gather_subset:
+          - os_family
+
+    - name: Install PostgreSQL if Debian
+      apt:
+        name: postgresql
+        state: present
+        update_cache: yes
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Install PostgreSQL if RedHat(AlmaLinux)
+      dnf:
+        name: postgresql-server
+        state: present
+      when: ansible_facts['os_family'] == "RedHat"
+
+    - name: Init DB if Redhat
+      command: postgresql-setup --initdb
+      when: ansible_facts['os_family'] == "RedHat"
+
+    - name: Check is PostgreSQL running
+      service:
+        name: postgresql
+        state: started
+        enabled: true
