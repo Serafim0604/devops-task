@@ -52,6 +52,7 @@ def main():
     parser = argparse.ArgumentParser(description="Parse IPs string")
     parser.add_argument("hosts", help="List of IPs separated by comma, example: 192.168.56.105,192.168.56.105")
     parser.add_argument("--key", required=True, help="Private SSH key path, example: ~/.ssh/deploy_key")
+    parser.add_argument("--db_password", required=True, help="Password for PostgreSQL user 'student'")
     args = parser.parse_args()
 
     ssh_key_path = os.path.expanduser(args.key)
@@ -70,6 +71,11 @@ def main():
     for ip in hosts:
         print(f"  - {ip}")
 
+    db_password = args.db_password
+    if not db_password:
+        print(f"[!] Need to provide password for PostgreSQL user 'student'")
+        exit(1)
+
     loads = {}
     for ip in hosts:
         loads[ip] = get_load_avg(ip, ssh_key_path)
@@ -85,7 +91,7 @@ def main():
         "ansible-playbook",
         "-i", "inventory.ini",
         "playbook.yaml",
-        "--extra-vars", f"client_host={client_host} db_host={db_host}",
+        "--extra-vars", f"client_host={client_host} db_host={db_host} db_user_password={db_password}",
     ], check=True)
 
 

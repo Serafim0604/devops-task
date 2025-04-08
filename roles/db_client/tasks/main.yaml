@@ -19,10 +19,10 @@
 
 - name: Check connection to PostgreSQL via SELECT 1
   shell: |
-    PGPASSWORD=studentpass psql -h {{ db_host }} -U student -d postgres -c "SELECT 1;"
+    PGPASSWORD={{ db_user_password }} psql -h {{ db_host }} -U student -d postgres -c "SELECT 1;"
   register: query_result
   failed_when: query_result.rc != 0
 
-- name: Вывод результата SELECT 1
+- name: Result SELECT 1
   debug:
     var: query_result.stdout

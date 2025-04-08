@@ -86,6 +86,6 @@
   become_user: postgres
   community.postgresql.postgresql_user:
     name: student
-    password: "studentpass"
+    password: "{{ db_user_password }}"
     db: postgres
     priv: "ALL"
