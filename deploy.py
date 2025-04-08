@@ -6,9 +6,8 @@ import os
 import paramiko
 
 
-def test_ssh_connection(ip, ssh_key_path):
-    print(f"Testing ssh connection to {ip}...")
-
+def get_load_avg(ip, ssh_key_path):
+    print(f"\n[*] Getting load average for {ip}")
     ssh_client = paramiko.SSHClient()
     ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
@@ -20,16 +19,17 @@ def test_ssh_connection(ip, ssh_key_path):
             timeout=5
         )
 
-        stdin, stdout, stderr = ssh_client.exec_command("hostname")
-        hostname = stdout.read().decode().strip()
-        print(f"[*] Successfully connected to {ip}, hostname: {hostname}")
+        stdin, stdout, stderr = ssh_client.exec_command("cat /proc/loadavg | awk '{print $1}'")
+        load_avg = stdout.read().decode().strip()
+        print(f"[*] Load avg: {load_avg}")
+        return float(load_avg)
 
     except Exception as e:
         print(f"[*] Error connecting to {ip}: {e}")
+        return float('inf')
 
     finally:
         ssh_client.close()
-
 
 
 def generate_inventory(ip, ssh_key_path):
@@ -56,7 +56,7 @@ def main():
         print(f"[!] SSH key not found: {ssh_key_path}")
         exit(1)
 
-    print(f"[*] SSH-key path: {ssh_key_path}")
+    print(f"[*] SSH-key path: {ssh_key_path}\n")
 
     hosts = [ip.strip() for ip in args.hosts.split(',')]
     if len(hosts) != 2:
@@ -65,9 +65,15 @@ def main():
 
     print("[*] Got IP addresses:")
     for ip in hosts:
-        test_ssh_connection(ip, ssh_key_path)
+        print(f"  - {ip}")
 
-    selected_host = hosts[0]
+    loads = {}
+    for ip in hosts:
+        loads[ip] = get_load_avg(ip, ssh_key_path)
+
+    selected_host = min(loads, key=loads.get)
+    print(f"\n[✓] Selected host: {selected_host}\n")
+
     generate_inventory(selected_host, ssh_key_path)
 
 
