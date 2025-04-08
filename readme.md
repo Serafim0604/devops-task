@@ -18,9 +18,13 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 2. Команда для запуска
+Пример запуска скрипта
 ```bash
-# Пример запуска команды
 python3 deploy.py --key ~/.ssh/ansible_key --db_password pass123 "192.168.56.105,192.168.56.106"
+```
+или
+```bash
+python3 deploy.py --key ~/.ssh/ansible_key --db_password pass123 "alma-vm,debian-vm"
 ```
 
 ## Возникшие вопросы
