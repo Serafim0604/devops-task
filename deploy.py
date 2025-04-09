@@ -114,7 +114,7 @@ def main():
         "--extra-vars", f"client_host={client_ip} db_host={db_host} db_user_password={db_password}",
     ], check=True)
 
-    print("\n[✓] PostgreSQL installation completed successfully!\n")
+    print(f"\n[✓] PostgreSQL successfully installed on {db_host}!\n")
 
 
 
